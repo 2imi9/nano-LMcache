@@ -60,6 +60,6 @@ print("model-specific KV: %d bytes/token  (=> %.2f MB per 1K-token prefix moved)
 # The FP8 angle: compare against a bf16 equivalent of the same geometry.
 bf16_bpt = c["num_layers"] * 2 * c["num_kv_heads"] * c["head_dim"] * 2
 if bpt < bf16_bpt:
-    print("  FP8 KV moves %.1fx fewer bytes than bf16 (%d vs %d) -> that much more"
-          " effective transfer bandwidth on the ROCm path." % (bf16_bpt / bpt, bpt, bf16_bpt))
+    print("  FP8 KV moves %.1fx fewer bytes than bf16 (%d vs %d) -> that much less"
+          " to store and transfer per cached token." % (bf16_bpt / bpt, bpt, bf16_bpt))
 print("ran in %.3fs on CPU" % elapsed)

@@ -57,7 +57,7 @@ def test_insert_idempotent():
 def test_namespace_prevents_cross_model_false_hit():
     # Codex P1: same tokens, different model namespace -> must NOT hit (incompatible KV).
     a = PrefixCache(chunk_size=16, namespace="qwen3-8b")
-    b = PrefixCache(chunk_size=16, namespace="minimax-m3")
+    b = PrefixCache(chunk_size=16, namespace="fp8-moe")
     toks = list(range(160))
     a.insert(toks, torch.randn(2, 2, 160, 4, 8))
     assert a.lookup(toks)[0] == 160, "same namespace must hit"

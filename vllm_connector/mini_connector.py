@@ -5,7 +5,7 @@ connector API — the SAME hook LMCache uses (KVConnectorBase_V1). The core cach
 in ../nanolmcache is fully tested standalone; this file needs a vLLM runtime
 to exercise, so it's a documented skeleton, not a validated path yet.
 
-Wire-up when running against vLLM (any ROCm or CUDA GPU):
+Wire-up when running against vLLM (any GPU):
     --kv-transfer-config '{"kv_connector":"MiniPrefixConnector",
       "kv_role":"kv_both",
       "kv_connector_module_path":"vllm_connector.mini_connector"}'

@@ -1,25 +1,22 @@
-"""Model-aware KV geometry — the "model-specific prefix caching" hook.
+"""Model-aware KV geometry — why prefix caching has a model-dependent angle.
 
-The whole reason prefix caching has a *model-dependent* angle: the KV tensor's
-shape and dtype come from the model's config (layers, kv-heads, head-dim, kv
-dtype). That determines bytes-per-token, which is what a cache actually moves
-and stores. FP8 KV halves the bytes-per-token of *the same geometry* in bf16
-(dtype-only; different models also differ in layers/kv-heads). Fewer bytes moved
-is directly relevant to the ROCm transfer-bandwidth bottleneck. Compare actual
-`kv_bytes_per_token()` values across models rather than assuming a flat 2x.
+The KV tensor's shape and dtype come from the model config (layers, kv-heads,
+head-dim, kv dtype), and that sets bytes-per-token — which is exactly what a cache
+stores and moves. FP8 KV halves the bytes-per-token of the same geometry vs bf16.
+Compare actual `kv_bytes_per_token()` values across models.
 
-Presets below are the real configs (from each model's config.json).
+Presets below are illustrative configs.
 """
 from __future__ import annotations
 import torch
 
 MODEL_CONFIGS = {
-    # Qwen3-8B: dense, GQA 32:8, bf16 KV. A small public model to test with.
+    # dense, GQA 32:8, bf16 KV — a small public model to test with.
     "qwen3-8b": dict(num_layers=36, num_kv_heads=8, head_dim=128,
                      dtype=torch.bfloat16, attn="full"),
-    # MiniMax M3: 428B/23B MoE, GQA 64:4, FP8 KV, MiniMax Sparse Attention.
-    "minimax-m3": dict(num_layers=60, num_kv_heads=4, head_dim=128,
-                       dtype=torch.float8_e4m3fn, attn="sparse_msa"),
+    # a large MoE with FP8 KV (illustrative) — shows FP8 halves KV bytes/token.
+    "fp8-moe": dict(num_layers=60, num_kv_heads=4, head_dim=128,
+                    dtype=torch.float8_e4m3fn, attn="sparse"),
 }
 
 

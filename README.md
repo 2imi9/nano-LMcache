@@ -62,19 +62,6 @@ hit, chunks = cache.lookup(prompt_token_ids)               # how many leading to
 cache.insert(prompt_token_ids, kv_tensor)                  # store [L, 2, T, kv_heads, head_dim]
 ```
 
-## Why FP8 KV matters (the AMD angle)
-
-KV bytes-per-token come from the model config, and that's what a cache actually moves:
-
-```
-$ python3 bench/simulate.py minimax-m3 20
-model-specific KV: 61440 bytes/token   (MiniMax-M3, FP8 KV)
-  FP8 KV moves 2.0x fewer bytes than bf16 -> that much more effective transfer bandwidth.
-```
-
-On ROCm, KV transfer bandwidth is the bottleneck for CPU-offloaded caching — so
-moving fewer bytes (FP8) and a native transfer path are the real levers.
-
 ## How it maps to real LMCache
 
 | this repo | LMCache |
@@ -90,9 +77,9 @@ Only what's actually planned — the *essence*, not LMCache parity.
 
 - [x] **Core** — chunk hashing, LRU CPU store, prefix lookup/insert, model-aware KV
 - [x] **CPU simulation** with real tensors — proves the mechanics
-- [ ] **One real cache hit** — finish the vLLM v1 connector; land a genuine prefix-cache hit on Qwen
-- [ ] **ROCm-native transfer** (torch/HIP) — avoid LMCache's CUDA-only `c_ops` (~2 GB/s ceiling)
-- [ ] **Model-specific** — FP8-KV-layout-aware transfer + sparse-attention (MSA)-aware reuse for MiniMax M3
+- [ ] **One real cache hit** — finish the vLLM v1 connector; land a genuine prefix-cache hit
+- [ ] **Faster transfer** — a native GPU KV-transfer path (the offload is a plain torch copy today)
+- [ ] **Model-specific** — FP8-KV-layout-aware transfer; sparse-attention-aware reuse
 
 ## Not a replacement for LMCache
 
