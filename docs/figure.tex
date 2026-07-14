@@ -24,13 +24,13 @@
 ]
 
 % ---- main vertical pipeline (explicit coords, generous spacing) ----
-\node[io]    (tok)  at (0,0)   {Prompt token ids};
+\node[io]    (tok)  at (0,0)   {Prompt Token Ids};
 \node[hashb] (hash) at (0,1.8) {Split into chunks\\ $+$ chained prefix hash};
 \node[lookb] (look) at (0,3.7) {Prefix lookup\\ (cache manager)};
 \node[loadb] (load) at (-2.6,6.0) {Reuse cached KV\\ \textit{hit:} skip prefill};
 \node[compb] (comp) at ( 2.6,6.0) {Compute prefill\\ \textit{miss:} attention};
 \node[mrgb]  (asm)  at (0,8.9) {Assemble KV\\ (reused $+$ new)};
-\node[io]    (dec)  at (0,10.7) {Decode \& serve};
+\node[io]    (dec)  at (0,10.7) {Decode \& Serve};
 
 % ---- cache store: connects ONLY to the lookup node (no crossing arrows) ----
 \node[storeb] (kv) at (5.6,3.7) {CPU KV store\\ hash $\to$ KV chunk\\ (LRU, bounded)};
