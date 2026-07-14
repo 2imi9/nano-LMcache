@@ -20,6 +20,7 @@
   io/.style={align=center, font=\sffamily\small\bfseries},
   arr/.style={-{Stealth[length=2.6mm]}, thick, black!78},
   darr/.style={{Stealth[length=2.6mm]}-{Stealth[length=2.6mm]}, thick, black!60},
+  legend/.style={draw=black!45, minimum size=3.2mm, inner sep=0pt},
 ]
 
 % ---- main vertical pipeline (explicit coords, generous spacing) ----
@@ -46,8 +47,22 @@
 
 % ---- dashed group box: the nano-LMcache layer ----
 \node[draw=black!45, dashed, rounded corners=8pt, fill=none,
-      fit=(hash)(look)(load)(comp)(kv), inner sep=6mm,
-      label={[black!55, font=\sffamily\footnotesize\bfseries]above:nano-LMcache \textmd{(prefix-cache layer)}}] {};
+      fit=(hash)(look)(load)(comp)(kv), inner sep=6mm] (layer) {};
+% title tucked at the top-right corner, above the border (clears Assemble KV + the dashed line)
+\node[anchor=south east, black!55, font=\sffamily\footnotesize\bfseries]
+      at ([xshift=-2mm, yshift=1.5mm]layer.north east) {nano-LMcache \textmd{(prefix-cache layer)}};
+
+% ---- legend, top-left corner ----
+\begin{scope}[shift={(-5.0,10.6)}, font=\scriptsize, node distance=1.4mm]
+  \node[legend, fill=green!16] (lg) {};
+  \node[legend, fill=red!13,   below=of lg] (lr) {};
+  \node[legend, fill=blue!8,   below=of lr] (lb) {};
+  \node[legend, fill=black!5,  below=of lb] (ln) {};
+  \node[anchor=west, right=1.2mm of lg] {hit — reuse (cheap)};
+  \node[anchor=west, right=1.2mm of lr] {miss — recompute};
+  \node[anchor=west, right=1.2mm of lb] {KV store};
+  \node[anchor=west, right=1.2mm of ln] {pipeline step};
+\end{scope}
 
 \end{tikzpicture}
 \end{document}
