@@ -49,8 +49,8 @@ Simulated shared-prefix traffic — 20 requests, a 512-token shared system promp
 | nano-LMcache | 3,072 | **76%** |
 
 ```bash
-python3 bench/simulate.py qwen3-8b 20   # reproduce
-python3 tests/test_cache.py             # 8 tests, no pytest needed
+python3 bench/simulate.py qwen3-8b 20                          # reproduce
+python3 tests/test_cache.py && python3 tests/test_connector.py # 12 tests, no pytest
 ```
 
 ## How it maps to LMCache
@@ -65,8 +65,9 @@ python3 tests/test_cache.py             # 8 tests, no pytest needed
 ## Roadmap
 
 - [x] Core (hashing, store, prefix lookup/insert) + CPU simulation
-- [ ] Real prefix-cache hit through the vLLM v1 connector
-- [ ] Native GPU KV-transfer path; model-specific (FP8 / sparse-attention) reuse
+- [x] vLLM KV-connector logic, tested against a mock vLLM (FP8 KV round-trips too)
+- [ ] Live prefix-cache hit on a real vLLM (needs a GPU box)
+- [ ] Native GPU KV-transfer path; sparse-attention-aware reuse
 
 ---
 

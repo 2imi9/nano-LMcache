@@ -39,18 +39,28 @@ class MiniPrefixConnector(KVConnectorBase_V1):
         # chunk_size should match the model's block size; 16 is a placeholder.
         self.cache = PrefixCache(chunk_size=16, max_chunks=200_000)
 
-    # ---- scheduler side -------------------------------------------------
-    def get_num_new_matched_tokens(self, request, num_computed_tokens: int):
-        """Return (num_external_hit_tokens, load_async).
+    # ---- framework-agnostic core --------------------------------------------
+    # The vLLM hooks below delegate to these three; they're also what the
+    # mock-vLLM tests (tests/test_connector.py) drive without a real vLLM.
+    def matched_prefix_tokens(self, token_ids, num_computed_tokens: int = 0) -> int:
+        """Additional leading tokens servable from cache, beyond the ones vLLM
+        already has resident (num_computed_tokens). This is the reuse count."""
+        hit, _ = self.cache.lookup(list(token_ids))
+        return max(0, hit - num_computed_tokens)
 
-        We hash the request's prompt and report the longest cached prefix beyond
-        what vLLM already has in its own (VRAM) cache. vLLM then skips prefill for
-        those tokens and asks the worker side to load them.
-        """
+    def save(self, token_ids, kv) -> int:
+        """Store freshly-computed KV for the request's full chunks. -> #chunks stored."""
+        return self.cache.insert(list(token_ids), kv)
+
+    def load(self, token_ids):
+        """Fetch cached KV for the longest cached prefix. -> (hit_tokens, chunks)."""
+        return self.cache.lookup(list(token_ids))
+
+    # ---- scheduler side (vLLM v1 API) ---------------------------------------
+    def get_num_new_matched_tokens(self, request, num_computed_tokens: int):
+        """(num_external_hit_tokens, load_async) — vLLM skips prefill for the hits."""
         token_ids = list(getattr(request, "prompt_token_ids", []) or [])
-        hit, _ = self.cache.lookup(token_ids)
-        external = max(0, hit - num_computed_tokens)
-        return external, False
+        return self.matched_prefix_tokens(token_ids, num_computed_tokens), False
 
     def update_state_after_alloc(self, request, blocks, num_external_tokens):
         """Record which blocks were allocated for the external (cached) tokens so
