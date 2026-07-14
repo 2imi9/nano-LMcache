@@ -1,9 +1,11 @@
-"""vLLM KV-connector adapter (reference skeleton).
+"""vLLM KV-connector adapter.
 
-This is the integration layer that plugs our PrefixCache into vLLM's v1 KV
-connector API — the SAME hook LMCache uses (KVConnectorBase_V1). The core cache
-in ../nanolmcache is fully tested standalone; this file needs a vLLM runtime
-to exercise, so it's a documented skeleton, not a validated path yet.
+Plugs our PrefixCache into vLLM's v1 KV-connector API — the same hook LMCache uses
+(KVConnectorBase_V1). Verified against real vLLM 0.23.1: MiniPrefixConnector
+subclasses KVConnectorBase_V1, implements its abstract methods (instantiable), and
+the scheduler-side signature matches. The scheduler reuse logic is tested
+(tests/test_connector.py + a mock). The worker-side load/save hooks are stubs,
+pending a GPU to build them out against vLLM's paged-KV blocks.
 
 Wire-up when running against vLLM (any GPU):
     --kv-transfer-config '{"kv_connector":"MiniPrefixConnector",

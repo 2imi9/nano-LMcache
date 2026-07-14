@@ -62,13 +62,6 @@ python3 tests/test_cache.py && python3 tests/test_connector.py # 12 tests, no py
 | `PrefixCache.lookup/insert` | the cache engine's store/retrieve |
 | `vllm_connector/` | `LMCacheConnectorV1` (same vLLM v1 KV-connector API) |
 
-## Roadmap
-
-- [x] Core (hashing, store, prefix lookup/insert) + CPU simulation
-- [x] vLLM KV-connector logic, tested against a mock vLLM (FP8 KV round-trips too)
-- [ ] Live prefix-cache hit on a real vLLM (needs a GPU box)
-- [ ] Native GPU KV-transfer path; sparse-attention-aware reuse
-
 ---
 
 Not a replacement for LMCache — a clean-room teaching implementation of the same idea. MIT.
