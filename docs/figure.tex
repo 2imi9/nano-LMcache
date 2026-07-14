@@ -8,12 +8,15 @@
   font=\sffamily\small, >=Stealth,
   box/.style={rounded corners=3pt, draw=black!70, thick, align=center,
               minimum height=11mm, minimum width=34mm, inner sep=3pt},
-  hashb/.style={box, fill=blue!12},
-  lookb/.style={box, fill=black!7},
+  % color = meaning: green = cache HIT (reused, cheap), red = MISS (recompute, costly),
+  % neutral gray = ordinary pipeline step, blue = the KV memory.
+  neutral/.style={box, fill=black!5},
+  hashb/.style={neutral},
+  lookb/.style={neutral},
+  mrgb/.style={neutral},
   loadb/.style={box, fill=green!16},
-  compb/.style={box, fill=orange!22},
-  mrgb/.style={box, fill=violet!16},
-  storeb/.style={box, fill=gray!15, minimum height=14mm},
+  compb/.style={box, fill=red!13},
+  storeb/.style={box, fill=blue!8, minimum height=14mm},
   io/.style={align=center, font=\sffamily\small\bfseries},
   arr/.style={-{Stealth[length=2.6mm]}, thick, black!78},
   darr/.style={{Stealth[length=2.6mm]}-{Stealth[length=2.6mm]}, thick, black!60},
@@ -34,10 +37,10 @@
 % ---- arrows ----
 \draw[arr] (tok)  -- (hash);
 \draw[arr] (hash) -- (look);
-\draw[arr] (look) -- (load) node[pos=0.55, above, sloped, font=\scriptsize]{hit};
-\draw[arr] (look) -- (comp) node[pos=0.55, above, sloped, font=\scriptsize]{miss};
-\draw[arr] (load) -- (asm);
-\draw[arr] (comp) -- (asm);
+\draw[arr, green!50!black] (look) -- (load) node[pos=0.55, above, sloped, font=\scriptsize]{hit};
+\draw[arr, red!60!black]   (look) -- (comp) node[pos=0.55, above, sloped, font=\scriptsize]{miss};
+\draw[arr, green!50!black] (load) -- (asm);
+\draw[arr, red!60!black]   (comp) -- (asm);
 \draw[arr] (asm)  -- (dec);
 \draw[darr] (look) -- (kv) node[midway, above, font=\scriptsize]{load / store};
 

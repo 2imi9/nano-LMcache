@@ -20,10 +20,11 @@ Runs on a laptop CPU — no GPU required.
   <img src="docs/figure.png" alt="nano-LMcache architecture" width="640">
 </p>
 
+**Green** = cache *hit* (reuse KV, skip prefill) · **red** = *miss* (recompute) · **blue** = the KV store.
 A request that shares a system prompt / RAG context / chat history with an earlier
-one gets that prefix's KV for free — only the divergent suffix is recomputed. The
-figure is drawn in TikZ ([`docs/figure.tex`](docs/figure.tex)); rebuild the SVG with
-`pdflatex docs/figure.tex` (or on Overleaf).
+one gets that prefix's KV for free — only the divergent suffix is recomputed. Figure
+drawn in TikZ ([`docs/figure.tex`](docs/figure.tex)); rebuild with `pdflatex docs/figure.tex`
+(or on Overleaf).
 
 ## What's inside (~200 LOC)
 
