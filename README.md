@@ -1,57 +1,104 @@
 # mini-prefix-cache
 
-A minimal, readable **prefix cache** for LLM serving — a "mini-LMCache" built to
-understand (and then extend) KV-cache reuse from first principles. Personal side
-project; runs locally on CPU, no GPU required.
+**Prefix caching for LLM serving, in ~200 lines of readable Python.** A tiny,
+from-scratch take on the idea behind [LMCache](https://github.com/LMCache/LMCache):
+reuse the KV cache for shared prompt prefixes so you skip recomputing prefill.
+Runs on a laptop CPU — no GPU required.
 
-## Why
+`nanoGPT` teaches the model. `nano-vllm` teaches the serving loop. This teaches the
+**cache layer** that sits underneath them.
 
-Prefix caching reuses the KV cache for shared token prefixes (system prompts, RAG
-context, chat history) so you skip recomputing prefill. This repo implements the
-core mechanism in ~200 lines of dependency-light Python, plus the hooks for the
-two things that make it interesting on AMD:
+---
 
-1. **Model-specific KV geometry** (`kv_shape.py`) — KV shape/dtype come from the
-   model config, which sets bytes-per-token. FP8 KV halves the bytes-per-token of
-   the same geometry vs bf16 (compare `kv_bytes_per_token()` across models) —
-   directly relevant to the ROCm KV-transfer bottleneck.
-2. **A vLLM connector adapter** (`vllm_connector/`) — plugs into the same v1 API
-   LMCache uses, so the core can drive real serving later.
-
-## Layout
+## The idea in one picture
 
 ```
-miniprefixcache/
-  hashing.py    chained per-chunk prefix hashing (blake2b, stdlib)
-  store.py      LRU CPU KV store (the offload tier)
-  cache.py      PrefixCache: lookup longest cached prefix / insert new chunks
-  kv_shape.py   model-aware KV geometry (qwen3-8b, minimax-m3 presets)  <- model-specific hook
-tests/test_cache.py   self-contained tests (no pytest needed)
-bench/simulate.py     shared-prefix request stream -> hit rate + prefill saved
-vllm_connector/       KVConnectorBase_V1 adapter (skeleton; needs vLLM to run)
+prompt tokens ──► split into fixed-size chunks
+                     │
+                     ▼
+   chunk 0   chunk 1   chunk 2   chunk 3         (each hash chains the previous:
+   #a1f..    #7c3..    #e90..    #b22..           same prefix ⇒ same leading hashes)
+     │         │         │         │
+     ▼         ▼         ▼         ▼
+   ┌─────────────────────────────────────┐
+   │   CPU KV store   {hash → KV chunk}   │  ◄── LRU, bounded (the "offload tier")
+   └─────────────────────────────────────┘
+     hit       hit       MISS ───────────────► only chunks 2..N are recomputed
+     └────── reused KV ──────┘                  (chunks 0..1 loaded from cache)
 ```
 
-## Run
+A request that shares a system prompt / RAG context / chat history with an earlier
+one gets that prefix's KV for free.
+
+## What's inside (~200 LOC)
+
+| file | what it does |
+|---|---|
+| `miniprefixcache/hashing.py` | chained per-chunk prefix hash (blake2b, stdlib) |
+| `miniprefixcache/store.py` | LRU CPU KV store — the offload tier |
+| `miniprefixcache/cache.py` | `PrefixCache`: look up longest cached prefix / insert new chunks |
+| `miniprefixcache/kv_shape.py` | **model-aware KV geometry** — shape & dtype per model config |
+| `bench/simulate.py` | shared-prefix request stream → hit rate + prefill saved |
+| `tests/test_cache.py` | 8 self-contained tests (no pytest needed) |
+| `vllm_connector/` | adapter for vLLM's KV-connector API (the same hook LMCache uses) |
+
+## Quickstart
 
 ```bash
-pip install torch                      # only hard dep (numpy optional)
-python3 tests/test_cache.py            # unit tests
-python3 bench/simulate.py qwen3-8b 20  # sim on Qwen3-8B geometry
-python3 bench/simulate.py minimax-m3 20 # sim on M3 geometry (FP8 KV -> fewer bytes)
+pip install torch          # the only hard dependency
+python3 tests/test_cache.py
+python3 bench/simulate.py qwen3-8b 20
 ```
+
+```text
+$ python3 bench/simulate.py qwen3-8b 20
+model: qwen3-8b  (36 layers, 8 kv-heads, head_dim 128, kv dtype bfloat16, attn=full)
+requests: 20   system prefix: 512 tok (shared)   suffix: 128 tok (unique)
+--------------------------------------------------------------
+prefill tokens WITHOUT cache: 12800
+prefill tokens WITH cache:    3072
+prefill SAVED: 76.0%   (steady-state per request: 512/640 = 80.0%)
+```
+
+```python
+from miniprefixcache import PrefixCache
+cache = PrefixCache(chunk_size=16, namespace="qwen3-8b")   # namespace = one cache per model
+hit, chunks = cache.lookup(prompt_token_ids)               # how many leading tokens are cached
+cache.insert(prompt_token_ids, kv_tensor)                  # store [L, 2, T, kv_heads, head_dim]
+```
+
+## Why FP8 KV matters (the AMD angle)
+
+KV bytes-per-token come from the model config, and that's what a cache actually moves:
+
+```
+$ python3 bench/simulate.py minimax-m3 20
+model-specific KV: 61440 bytes/token   (MiniMax-M3, FP8 KV)
+  FP8 KV moves 2.0x fewer bytes than bf16 -> that much more effective transfer bandwidth.
+```
+
+On ROCm, KV transfer bandwidth is the bottleneck for CPU-offloaded caching — so
+moving fewer bytes (FP8) and a native transfer path are the real levers.
+
+## How it maps to real LMCache
+
+| this repo | LMCache |
+|---|---|
+| chained chunk hash | blake3 over 256-token chunks (`TokenHasher`) |
+| `KVStore` (CPU, LRU) | L1 CPU backend (+ L2 disk / Redis / remote) |
+| `PrefixCache.lookup/insert` | the cache engine's store/retrieve |
+| `vllm_connector/` | `LMCacheConnectorV1` (same vLLM v1 KV-connector API) |
 
 ## Roadmap
 
 - [x] Core: chunk hashing, LRU store, prefix lookup/insert, model-aware KV
-- [x] Simulation harness (CPU, real tensors) — proves the mechanics
-- [ ] Complete the vLLM v1 connector against a target version; run on Qwen on a real GPU
-- [ ] **ROCm-native transfer** — write the KV copy in torch/HIP from the start,
-      avoiding LMCache's CUDA-only `c_ops` path (the ~2 GB/s ceiling on ROCm)
-- [ ] **MSA-aware caching for M3** — reuse only the blocks MiniMax Sparse Attention
-      actually attends to, instead of the whole prefix
+- [x] CPU simulation harness (real tensors) — proves the mechanics
+- [ ] Complete the vLLM v1 connector; run a real prefix-cache hit on Qwen
+- [ ] **ROCm-native transfer** (torch/HIP) — avoid LMCache's CUDA-only `c_ops` path
+- [ ] **Sparse-attention-aware** caching (reuse only the blocks the model attends to)
 
-## Relation to LMCache
+## Not a replacement for LMCache
 
-This is a teaching/clean-room implementation of the same idea. LMCache is the
-mature system; the goal here is to own the mechanics end-to-end so the
-model-specific (M3) and ROCm-native pieces are ours to write.
+This is a clean-room teaching implementation of the same idea. LMCache is the
+production system — use it for real. This exists to make the mechanics readable
+end-to-end. MIT licensed.
