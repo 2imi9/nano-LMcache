@@ -3,8 +3,10 @@
 The whole reason prefix caching has a *model-dependent* angle: the KV tensor's
 shape and dtype come from the model's config (layers, kv-heads, head-dim, kv
 dtype). That determines bytes-per-token, which is what a cache actually moves
-and stores. FP8-KV models (like MiniMax M3) move half the bytes of a bf16 model
-— directly relevant to the ROCm transfer-bandwidth bottleneck.
+and stores. FP8 KV halves the bytes-per-token of *the same geometry* in bf16
+(dtype-only; different models also differ in layers/kv-heads). Fewer bytes moved
+is directly relevant to the ROCm transfer-bandwidth bottleneck. Compare actual
+`kv_bytes_per_token()` values across models rather than assuming a flat 2x.
 
 Presets below are the real configs (from each model's config.json).
 """

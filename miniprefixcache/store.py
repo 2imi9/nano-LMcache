@@ -12,6 +12,8 @@ from typing import Optional, Any
 
 class KVStore:
     def __init__(self, max_chunks: int = 4096):
+        if max_chunks < 1:
+            raise ValueError("max_chunks must be >= 1")
         self.max_chunks = max_chunks
         self._d: "OrderedDict[str, Any]" = OrderedDict()
         self.evictions = 0

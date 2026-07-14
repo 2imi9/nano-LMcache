@@ -54,6 +54,33 @@ def test_insert_idempotent():
     assert n1 == 10 and n2 == 0, (n1, n2)
 
 
+def test_namespace_prevents_cross_model_false_hit():
+    # Codex P1: same tokens, different model namespace -> must NOT hit (incompatible KV).
+    a = PrefixCache(chunk_size=16, namespace="qwen3-8b")
+    b = PrefixCache(chunk_size=16, namespace="minimax-m3")
+    toks = list(range(160))
+    a.insert(toks, torch.randn(2, 2, 160, 4, 8))
+    assert a.lookup(toks)[0] == 160, "same namespace must hit"
+    assert b.lookup(toks)[0] == 0, "different namespace must NOT false-hit"
+
+
+def test_token_id_range_rejected():
+    # Codex P1: out-of-range ids must raise, not silently alias via masking.
+    for bad in ([-1], [2 ** 32]):
+        try:
+            chunk_prefix_hashes(bad * 16, 16)
+            assert False, "expected ValueError for %r" % bad
+        except ValueError:
+            pass
+
+
+def test_store_rejects_bad_capacity():
+    try:
+        KVStore(max_chunks=-1); assert False, "expected ValueError"
+    except ValueError:
+        pass
+
+
 if __name__ == "__main__":
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     passed = 0

@@ -18,20 +18,27 @@ _SEED = b"\x00" * 16
 
 
 def _tokens_to_bytes(tokens: List[int]) -> bytes:
-    # Pack token ids as little-endian uint32 (stable, fast).
-    return struct.pack("<%dI" % len(tokens), *(t & 0xFFFFFFFF for t in tokens))
+    # Pack token ids as little-endian uint32. Reject out-of-range ids rather than
+    # masking them: masking would alias distinct ids to the same hash -> false hit
+    # -> wrong KV returned. (Real vocabs are small; this just makes it explicit.)
+    for t in tokens:
+        if t < 0 or t > 0xFFFFFFFF:
+            raise ValueError("token id %d out of range [0, 2**32)" % t)
+    return struct.pack("<%dI" % len(tokens), *tokens)
 
 
-def chunk_prefix_hashes(token_ids: List[int], chunk_size: int) -> List[str]:
+def chunk_prefix_hashes(token_ids: List[int], chunk_size: int,
+                        seed: bytes = _SEED) -> List[str]:
     """Return one chained hash per FULL chunk of `token_ids`.
 
     Only whole chunks are cacheable (a partial trailing chunk is ignored), which
     matches how block/paged KV caches work. len(result) == len(token_ids)//chunk_size.
+    `seed` namespaces the hashes (e.g. per model) so incompatible KV can't collide.
     """
     if chunk_size <= 0:
         raise ValueError("chunk_size must be positive")
     hashes: List[str] = []
-    prev = _SEED
+    prev = seed
     n_full = len(token_ids) // chunk_size
     for i in range(n_full):
         chunk = token_ids[i * chunk_size:(i + 1) * chunk_size]

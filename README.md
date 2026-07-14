@@ -12,8 +12,9 @@ core mechanism in ~200 lines of dependency-light Python, plus the hooks for the
 two things that make it interesting on AMD:
 
 1. **Model-specific KV geometry** (`kv_shape.py`) — KV shape/dtype come from the
-   model config, which sets bytes-per-token. FP8-KV models (MiniMax M3) move half
-   the bytes of bf16 — directly relevant to the ROCm KV-transfer bottleneck.
+   model config, which sets bytes-per-token. FP8 KV halves the bytes-per-token of
+   the same geometry vs bf16 (compare `kv_bytes_per_token()` across models) —
+   directly relevant to the ROCm KV-transfer bottleneck.
 2. **A vLLM connector adapter** (`vllm_connector/`) — plugs into the same v1 API
    LMCache uses, so the core can drive real serving later.
 
