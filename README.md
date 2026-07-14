@@ -16,23 +16,21 @@ Runs on a laptop CPU — no GPU required.
 
 ## The idea in one picture
 
-```
-prompt tokens ──► split into fixed-size chunks
-                     │
-                     ▼
-   chunk 0   chunk 1   chunk 2   chunk 3         (each hash chains the previous:
-   #a1f..    #7c3..    #e90..    #b22..           same prefix ⇒ same leading hashes)
-     │         │         │         │
-     ▼         ▼         ▼         ▼
-   ┌─────────────────────────────────────┐
-   │   CPU KV store   {hash → KV chunk}   │  ◄── LRU, bounded (the "offload tier")
-   └─────────────────────────────────────┘
-     hit       hit       MISS ───────────────► only chunks 2..N are recomputed
-     └────── reused KV ──────┘                  (chunks 0..1 loaded from cache)
+```mermaid
+flowchart TD
+    A["Prompt tokens"] --> B["Split into fixed-size chunks"]
+    B --> C["Chain-hash each chunk<br/>(same prefix = same leading hashes)"]
+    C --> D{"Chunk already<br/>in the store?"}
+    D -->|hit| E["Load cached KV<br/>skip prefill for this chunk"]
+    D -->|miss| F["Compute prefill<br/>for this chunk"]
+    F --> G[("CPU KV store<br/>hash to KV chunk, LRU bounded")]
+    E --> H["Assembled KV for the request"]
+    F --> H
+    G -. "serves future hits" .-> D
 ```
 
 A request that shares a system prompt / RAG context / chat history with an earlier
-one gets that prefix's KV for free.
+one gets that prefix's KV for free — only the divergent suffix is recomputed.
 
 ## What's inside (~200 LOC)
 
@@ -95,11 +93,27 @@ moving fewer bytes (FP8) and a native transfer path are the real levers.
 
 ## Roadmap
 
-- [x] Core: chunk hashing, LRU store, prefix lookup/insert, model-aware KV
-- [x] CPU simulation harness (real tensors) — proves the mechanics
-- [ ] Complete the vLLM v1 connector; run a real prefix-cache hit on Qwen
-- [ ] **ROCm-native transfer** (torch/HIP) — avoid LMCache's CUDA-only `c_ops` path
-- [ ] **Sparse-attention-aware** caching (reuse only the blocks the model attends to)
+**Phase 1 — Core** ✅
+- [x] Chained chunk hashing, LRU CPU store, `PrefixCache` lookup/insert
+- [x] Model-aware KV geometry (`kv_shape`)
+- [x] CPU simulation with real tensors — proves the mechanics
+
+**Phase 2 — Real serving**
+- [ ] Finish the vLLM v1 KV-connector; land a real prefix-cache hit on Qwen
+- [ ] Add an L2 disk tier below the CPU store
+- [ ] Report the metric that matters: TTFT reduction on shared-prefix traffic
+
+**Phase 3 — Make it fast on AMD**
+- [ ] ROCm-native KV transfer (torch/HIP) — avoid LMCache's CUDA-only `c_ops` (~2 GB/s ceiling)
+- [ ] Benchmark transfer bandwidth vs the Python fallback
+
+**Phase 4 — Model-specific caching**
+- [ ] FP8-KV-layout-aware transfer (move KV in its native dtype — half the bytes)
+- [ ] Sparse-attention (MSA)-aware reuse — cache only the blocks the model attends to
+
+**Phase 5 — Scale-out** *(stretch)*
+- [ ] Cross-instance sharing via a tiny KV server (reuse across replicas)
+- [ ] Pluggable eviction policies
 
 ## Not a replacement for LMCache
 
