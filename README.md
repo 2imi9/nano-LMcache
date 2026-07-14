@@ -17,7 +17,7 @@ Runs on a laptop CPU — no GPU required.
 ## Architecture
 
 <p align="center">
-  <img src="docs/figure.svg" alt="nano-LMcache architecture" width="640">
+  <img src="docs/figure.png" alt="nano-LMcache architecture" width="640">
 </p>
 
 A request that shares a system prompt / RAG context / chat history with an earlier
