@@ -14,23 +14,16 @@ Runs on a laptop CPU — no GPU required.
 
 ---
 
-## The idea in one picture
+## Architecture
 
-```mermaid
-flowchart TD
-    A["Prompt tokens"] --> B["Split into fixed-size chunks"]
-    B --> C["Chain-hash each chunk<br/>(same prefix = same leading hashes)"]
-    C --> D{"Chunk already<br/>in the store?"}
-    D -->|hit| E["Load cached KV<br/>skip prefill for this chunk"]
-    D -->|miss| F["Compute prefill<br/>for this chunk"]
-    F --> G[("CPU KV store<br/>hash to KV chunk, LRU bounded")]
-    E --> H["Assembled KV for the request"]
-    F --> H
-    G -. "serves future hits" .-> D
-```
+<p align="center">
+  <img src="docs/figure.svg" alt="nano-LMcache architecture" width="640">
+</p>
 
 A request that shares a system prompt / RAG context / chat history with an earlier
-one gets that prefix's KV for free — only the divergent suffix is recomputed.
+one gets that prefix's KV for free — only the divergent suffix is recomputed. The
+figure is drawn in TikZ ([`docs/figure.tex`](docs/figure.tex)); rebuild the SVG with
+`pdflatex docs/figure.tex` (or on Overleaf).
 
 ## What's inside (~200 LOC)
 
@@ -93,27 +86,13 @@ moving fewer bytes (FP8) and a native transfer path are the real levers.
 
 ## Roadmap
 
-**Phase 1 — Core** ✅
-- [x] Chained chunk hashing, LRU CPU store, `PrefixCache` lookup/insert
-- [x] Model-aware KV geometry (`kv_shape`)
-- [x] CPU simulation with real tensors — proves the mechanics
+Only what's actually planned — the *essence*, not LMCache parity.
 
-**Phase 2 — Real serving**
-- [ ] Finish the vLLM v1 KV-connector; land a real prefix-cache hit on Qwen
-- [ ] Add an L2 disk tier below the CPU store
-- [ ] Report the metric that matters: TTFT reduction on shared-prefix traffic
-
-**Phase 3 — Make it fast on AMD**
-- [ ] ROCm-native KV transfer (torch/HIP) — avoid LMCache's CUDA-only `c_ops` (~2 GB/s ceiling)
-- [ ] Benchmark transfer bandwidth vs the Python fallback
-
-**Phase 4 — Model-specific caching**
-- [ ] FP8-KV-layout-aware transfer (move KV in its native dtype — half the bytes)
-- [ ] Sparse-attention (MSA)-aware reuse — cache only the blocks the model attends to
-
-**Phase 5 — Scale-out** *(stretch)*
-- [ ] Cross-instance sharing via a tiny KV server (reuse across replicas)
-- [ ] Pluggable eviction policies
+- [x] **Core** — chunk hashing, LRU CPU store, prefix lookup/insert, model-aware KV
+- [x] **CPU simulation** with real tensors — proves the mechanics
+- [ ] **One real cache hit** — finish the vLLM v1 connector; land a genuine prefix-cache hit on Qwen
+- [ ] **ROCm-native transfer** (torch/HIP) — avoid LMCache's CUDA-only `c_ops` (~2 GB/s ceiling)
+- [ ] **Model-specific** — FP8-KV-layout-aware transfer + sparse-attention (MSA)-aware reuse for MiniMax M3
 
 ## Not a replacement for LMCache
 
