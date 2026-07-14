@@ -83,6 +83,21 @@ $ rm -rf /tmp/nano_kv && python examples/vllm_offline_demo.py load
 Verified on an AMD MI250 with Qwen2.5-1.5B (vLLM 0.23.1): 416 tokens of prefill skipped,
 KV injected into all 28 attention layers, output identical to full recompute.
 
+**...and it accelerates serving where an offload cache should win.** With `NANO_KV_MEM=1`
+the store is an in-memory CPU tier. When the working set exceeds VRAM (so vLLM *evicts*
+reused prefixes), nano-LMcache serves the evicted ones from RAM instead of recomputing.
+40 distinct ~3.9k-token prefixes, Qwen3-8B, a small VRAM pool, revisit pass (MI250):
+
+| revisit of the **evicted** prefixes | latency |
+|---|---:|
+| vLLM only (evicted → recompute) | 0.671 s |
+| **+ nano-LMcache CPU tier** (served from RAM) | **0.383 s  (1.75× faster)** |
+
+Honest caveats (the same shape as real LMCache): a cold-store cost on the first pass
+(populate 0.90 s vs 0.67 s), and a redundant-load when a prefix is still VRAM-resident
+(a `num_computed_tokens` overlap), so the *overall* revisit mean isn't better yet — the
+win is on the capacity-bound, evicted prefixes. Reproduce: `examples/vllm_capacity_bench.py`.
+
 ## How it maps to LMCache
 
 | this repo | LMCache |
