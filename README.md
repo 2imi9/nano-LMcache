@@ -61,7 +61,3 @@ python3 tests/test_cache.py && python3 tests/test_connector.py # 12 tests, no py
 | `KVStore` (CPU, LRU) | L1 CPU backend (+ disk / Redis / remote) |
 | `PrefixCache.lookup/insert` | the cache engine's store/retrieve |
 | `vllm_connector/` | `LMCacheConnectorV1` (same vLLM v1 KV-connector API) |
-
----
-
-Not a replacement for LMCache — a clean-room teaching implementation of the same idea. MIT.
