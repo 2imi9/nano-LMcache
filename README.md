@@ -10,8 +10,8 @@ the KV of shared prompt prefixes so you skip recomputing prefill.
 
 ## Key Features
 
-- **Readable**: the whole idea in ~200 lines — chunk hashing, an LRU CPU KV store, prefix lookup/insert.
-- **Real mechanics**: a CPU simulation with real tensors, mapping 1:1 to LMCache's design.
+- **Readable**: the core idea in ~200 lines — chunk hashing, an LRU CPU KV store, prefix lookup/insert.
+- **Actually runs**: caches the KV from a real transformer's forward pass and reuses it — the reused-KV output is verified **bit-identical** to full recompute (`bench/e2e.py`).
 - **No GPU required**: runs on a laptop; `pip install torch` is the only dependency.
 
 ## Architecture
@@ -41,16 +41,20 @@ cache.insert(prompt_token_ids, kv_tensor)                  # store [L, 2, T, kv_
 
 ## Benchmark
 
-Simulated shared-prefix traffic — 20 requests, a 512-token shared system prompt, 128-token unique suffix:
+**Real prefix-cache hit on a tiny transformer (CPU).** Cache the prefix's KV, reuse it,
+compute only the suffix — the reused-KV logits are **bit-identical** to a full recompute:
 
-| Cache | Prefill tokens | Saved |
-|---|---:|---:|
-| off | 12,800 | — |
-| nano-LMcache | 3,072 | **76%** |
+| Prefix | Compute saved | Max logit diff | Prefill (cold → warm) |
+|---:|---:|---:|---:|
+| 256 | 80% | 7e-7 (≈0) | 12.6 ms → 4.1 ms |
+| 1024 | 94% | 8e-7 (≈0) | 55.6 ms → 6.3 ms |
+
+A higher-level simulation over a request stream (20 requests, 512-token shared prompt) saves **76%** of prefill.
 
 ```bash
-python3 bench/simulate.py qwen3-8b 20                          # reproduce
-python3 tests/test_cache.py && python3 tests/test_connector.py # 12 tests, no pytest
+python3 bench/e2e.py                                      # real cache hit + correctness sweep
+python3 bench/simulate.py qwen3-8b 20                     # request-stream simulation
+for t in cache connector e2e; do python3 tests/test_$t.py; done   # 14 tests, no pytest
 ```
 
 ## How it maps to LMCache
