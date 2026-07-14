@@ -11,8 +11,9 @@ the KV of shared prompt prefixes so you skip recomputing prefill.
 ## Key Features
 
 - **Readable**: the core idea in ~200 lines — chunk hashing, an LRU CPU KV store, prefix lookup/insert.
-- **Actually runs**: caches the KV from a real transformer's forward pass and reuses it — the reused-KV output is verified **bit-identical** to full recompute (`bench/e2e.py`).
-- **No GPU required**: runs on a laptop; `pip install torch` is the only dependency.
+- **Actually runs**: caches the KV from a real transformer's forward pass and reuses it — output verified **bit-identical** to full recompute (`bench/e2e.py`, CPU, no GPU).
+- **Plugs into real vLLM**: a working KV connector (`vllm_connector/nano_kv_connector.py`) lands a genuine prefix-cache hit in a live vLLM engine on GPU — verified with a negative control.
+- **Dependency-light**: `pip install torch` for the core; the vLLM connector needs vLLM + a GPU.
 
 ## Architecture
 
@@ -57,6 +58,31 @@ python3 bench/simulate.py qwen3-8b 20                     # request-stream simul
 for t in cache connector e2e; do python3 tests/test_$t.py; done   # 14 tests, no pytest
 ```
 
+## In a real vLLM engine (GPU)
+
+`vllm_connector/nano_kv_connector.py` is a working vLLM v1 KV connector (modeled on
+vLLM's own `ExampleConnector`, keyed by nano-LMcache's prefix hash). It gathers/scatters
+KV from vLLM's paged blocks, so it lands a genuine prefix-cache hit in a live engine:
+
+```text
+# process 1 (cold): our connector saves the prefix KV
+$ python examples/vllm_offline_demo.py store
+OUT: ' OK. How can I assist you further?'
+
+# process 2 (fresh, cold GPU cache): hits our external cache and skips the prefill
+$ python examples/vllm_offline_demo.py load
+[nano] HIT   key=dc49fe6b3a1f  matched_tokens=416
+[nano] start_load_kv: injected cached KV into 28 layers (416 tokens)
+OUT: ' OK. How can I assist you further?'      # <- bit-identical to the cold run
+
+# wipe the store -> MISS, proving the hit really came from our cache
+$ rm -rf /tmp/nano_kv && python examples/vllm_offline_demo.py load
+[nano] MISS  key=dc49fe6b3a1f
+```
+
+Verified on an AMD MI250 with Qwen2.5-1.5B (vLLM 0.23.1): 416 tokens of prefill skipped,
+KV injected into all 28 attention layers, output identical to full recompute.
+
 ## How it maps to LMCache
 
 | this repo | LMCache |
@@ -64,4 +90,4 @@ for t in cache connector e2e; do python3 tests/test_$t.py; done   # 14 tests, no
 | chained chunk hash | blake3 over 256-token chunks |
 | `KVStore` (CPU, LRU) | L1 CPU backend (+ disk / Redis / remote) |
 | `PrefixCache.lookup/insert` | the cache engine's store/retrieve |
-| `vllm_connector/` | `LMCacheConnectorV1` (same vLLM v1 KV-connector API) |
+| `vllm_connector/nano_kv_connector.py` | `LMCacheConnectorV1` — real vLLM connector, verified hit |
