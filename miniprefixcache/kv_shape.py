@@ -14,7 +14,7 @@ from __future__ import annotations
 import torch
 
 MODEL_CONFIGS = {
-    # Qwen3-8B: dense, GQA 32:8, bf16 KV. Runs on MI250 (our dry-run model).
+    # Qwen3-8B: dense, GQA 32:8, bf16 KV. A small public model to test with.
     "qwen3-8b": dict(num_layers=36, num_kv_heads=8, head_dim=128,
                      dtype=torch.bfloat16, attn="full"),
     # MiniMax M3: 428B/23B MoE, GQA 64:4, FP8 KV, MiniMax Sparse Attention.

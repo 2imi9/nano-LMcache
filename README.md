@@ -44,7 +44,7 @@ python3 bench/simulate.py minimax-m3 20 # sim on M3 geometry (FP8 KV -> fewer by
 
 - [x] Core: chunk hashing, LRU store, prefix lookup/insert, model-aware KV
 - [x] Simulation harness (CPU, real tensors) — proves the mechanics
-- [ ] Complete the vLLM v1 connector against a target version; run on Qwen (MI250)
+- [ ] Complete the vLLM v1 connector against a target version; run on Qwen on a real GPU
 - [ ] **ROCm-native transfer** — write the KV copy in torch/HIP from the start,
       avoiding LMCache's CUDA-only `c_ops` path (the ~2 GB/s ceiling on ROCm)
 - [ ] **MSA-aware caching for M3** — reuse only the blocks MiniMax Sparse Attention
