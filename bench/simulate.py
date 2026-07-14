@@ -14,8 +14,8 @@ import os, sys, time
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import torch
-from miniprefixcache import PrefixCache
-from miniprefixcache.kv_shape import make_kv, kv_bytes_per_token, cfg
+from nanolmcache import PrefixCache
+from nanolmcache.kv_shape import make_kv, kv_bytes_per_token, cfg
 
 MODEL = sys.argv[1] if len(sys.argv) > 1 else "qwen3-8b"
 N_REQ = int(sys.argv[2]) if len(sys.argv) > 2 else 20

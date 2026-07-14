@@ -3,7 +3,7 @@ import os, sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import torch
-from miniprefixcache import chunk_prefix_hashes, KVStore, PrefixCache
+from nanolmcache import chunk_prefix_hashes, KVStore, PrefixCache
 
 
 def test_hash_determinism_and_prefix_sharing():

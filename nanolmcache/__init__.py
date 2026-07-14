@@ -1,4 +1,4 @@
-"""mini-prefix-cache: a minimal, readable prefix cache (a "mini-LMCache").
+"""nano-LMcache: a minimal, readable prefix cache (a "mini-LMCache").
 
 Core = chunk hashing + LRU CPU store + a reuse cache. Model-aware KV geometry
 lives in kv_shape. See vllm_connector/ for the vLLM integration adapter.

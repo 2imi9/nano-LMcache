@@ -1,9 +1,13 @@
-# mini-prefix-cache
+# nano-LMcache
 
 **Prefix caching for LLM serving, in ~200 lines of readable Python.** A tiny,
 from-scratch take on the idea behind [LMCache](https://github.com/LMCache/LMCache):
 reuse the KV cache for shared prompt prefixes so you skip recomputing prefill.
 Runs on a laptop CPU — no GPU required.
+
+> Reference / inspiration: **[vLLM + LMCache: A Starter Guide, No GPU Required](https://blog.lmcache.ai/en/2026/06/23/vllm-lmcache-a-starter-guide-no-gpu-required/)** —
+> the LMCache team's walkthrough of running the *real* vLLM + LMCache on a Mac.
+> This repo is the nano version of the cache layer that guide sets up.
 
 `nanoGPT` teaches the model. `nano-vllm` teaches the serving loop. This teaches the
 **cache layer** that sits underneath them.
@@ -34,10 +38,10 @@ one gets that prefix's KV for free.
 
 | file | what it does |
 |---|---|
-| `miniprefixcache/hashing.py` | chained per-chunk prefix hash (blake2b, stdlib) |
-| `miniprefixcache/store.py` | LRU CPU KV store — the offload tier |
-| `miniprefixcache/cache.py` | `PrefixCache`: look up longest cached prefix / insert new chunks |
-| `miniprefixcache/kv_shape.py` | **model-aware KV geometry** — shape & dtype per model config |
+| `nanolmcache/hashing.py` | chained per-chunk prefix hash (blake2b, stdlib) |
+| `nanolmcache/store.py` | LRU CPU KV store — the offload tier |
+| `nanolmcache/cache.py` | `PrefixCache`: look up longest cached prefix / insert new chunks |
+| `nanolmcache/kv_shape.py` | **model-aware KV geometry** — shape & dtype per model config |
 | `bench/simulate.py` | shared-prefix request stream → hit rate + prefill saved |
 | `tests/test_cache.py` | 8 self-contained tests (no pytest needed) |
 | `vllm_connector/` | adapter for vLLM's KV-connector API (the same hook LMCache uses) |
@@ -61,7 +65,7 @@ prefill SAVED: 76.0%   (steady-state per request: 512/640 = 80.0%)
 ```
 
 ```python
-from miniprefixcache import PrefixCache
+from nanolmcache import PrefixCache
 cache = PrefixCache(chunk_size=16, namespace="qwen3-8b")   # namespace = one cache per model
 hit, chunks = cache.lookup(prompt_token_ids)               # how many leading tokens are cached
 cache.insert(prompt_token_ids, kv_tensor)                  # store [L, 2, T, kv_heads, head_dim]

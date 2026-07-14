@@ -2,7 +2,7 @@
 
 This is the integration layer that plugs our PrefixCache into vLLM's v1 KV
 connector API — the SAME hook LMCache uses (KVConnectorBase_V1). The core cache
-in ../miniprefixcache is fully tested standalone; this file needs a vLLM runtime
+in ../nanolmcache is fully tested standalone; this file needs a vLLM runtime
 to exercise, so it's a documented skeleton, not a validated path yet.
 
 Wire-up when running against vLLM (any ROCm or CUDA GPU):
@@ -17,7 +17,7 @@ The two sides of the v1 API:
 from __future__ import annotations
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-from miniprefixcache import PrefixCache
+from nanolmcache import PrefixCache
 
 try:
     from vllm.distributed.kv_transfer.kv_connector.v1.base import (
