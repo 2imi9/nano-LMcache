@@ -6,7 +6,8 @@ Prefix caching (KV reuse) for LLM serving, from scratch — the nano version of
 [LMCache](https://github.com/LMCache/LMCache): reuse the KV of shared prompt prefixes
 so you skip recomputing prefill.
 
-> Reference: [vLLM + LMCache: A Starter Guide, No GPU Required](https://blog.lmcache.ai/en/2026/06/23/vllm-lmcache-a-starter-guide-no-gpu-required/)
+> References: [LMCache paper (arXiv:2510.09665)](https://arxiv.org/abs/2510.09665) ·
+> [vLLM + LMCache: A Starter Guide, No GPU Required](https://blog.lmcache.ai/en/2026/06/23/vllm-lmcache-a-starter-guide-no-gpu-required/)
 
 ## Features
 
@@ -66,3 +67,20 @@ for t in cache connector e2e; do python3 tests/test_$t.py; done   # 14 tests, no
 | `KVStore` (CPU, LRU) | L1 CPU (+ disk / Redis / remote) |
 | `PrefixCache.lookup/insert` | the cache engine's store/retrieve |
 | `vllm_connector/nano_kv_connector.py` | `LMCacheConnectorV1` — real vLLM connector, verified hit |
+
+## Citation
+
+This is an educational reimplementation. For the real system and its design, cite the
+LMCache paper:
+
+```bibtex
+@article{liu2025lmcache,
+  title   = {LMCache: An Efficient KV Cache Layer for Enterprise-Scale LLM Inference},
+  author  = {Liu, Yuhan and Cheng, Yihua and Yao, Jiayi and An, Yuwei and
+             Chen, Xiaokun and Feng, Shaoting and Huang, Yuyang and Shen, Samuel and
+             Zhang, Rui and Du, Kuntai and Jiang, Junchen},
+  journal = {arXiv preprint arXiv:2510.09665},
+  year    = {2025},
+  url     = {https://arxiv.org/abs/2510.09665}
+}
+```
